@@ -1,5 +1,7 @@
 'use strict';
 require( 'dotenv' ).config(); // environment variables
+const http = require( 'follow-redirects' ).http;
+const https = require( 'follow-redirects' ).https;
 
 // db connection
 const MongoClient = require( 'mongodb' ).MongoClient;
@@ -12,22 +14,35 @@ MongoClient.connect( dbUrl, ( err, database ) => {
 });
 
 // address to be scraped
-const address = process.argv[ 2 ];
+const siteAddress = process.argv[ 2 ];
+const currentPage = process.argv[ 3 ];
+let page;
 
-getPage( address )
-  .then( getThumbElements )
-  .then( getDetails )
-  .then( (response) => {
-  console.log( 'got the thumb elements:', response );
-  db.close();
-}).catch( ( err ) => {
-  error( err );
-});
+// kick things off
+main( siteAddress + currentPage + '/' );
+
+function main( address ) {
+  getPage( address )
+    .then( getThumbElements )
+    .then( getDetails )
+    .then( (response) => {
+      let nextPage = checkLast( page );
+      if( nextPage ){
+        main( siteAddress + String( nextPage ) + '/' );
+      } else {
+        console.log( 'all done' );
+        db.close();
+      }
+  }).catch( ( err ) => {
+    error( err );
+  });
+}
 
 // get the page
 function getPage( address ) {
+  console.log( 'processing page:', address );
   return new Promise(( resolve, reject ) => {
-    const lib = address.startsWith( 'https' ) ? require( 'https' ) : require( 'http' );
+    const lib = address.startsWith( 'https' ) ? https : http;
     const request = lib.get( address, ( response ) => {
 
       if ( response.statusCode < 200 || response.statusCode > 299 ) {
@@ -41,6 +56,7 @@ function getPage( address ) {
       });
 
       response.on( 'end', () => {
+        page = body;
         resolve( body );
       });
     });
@@ -71,11 +87,11 @@ function getDetails( elements ) {
       let result = {};
 
       const linkRegexpr = /<a\s+(?:[^>]*?\s+)?href="([^"]*)"/;
-      result.link = element.match( linkRegexpr )[ 1 ];
+      result.link = element.match( linkRegexpr )[ 1 ] || '';
 
       // todo - need to change this or make more generic
       const titleRegexpr = /<span class="video-name"><a[\s\S]+?>([\s\S]+)<\/a>/i;
-      result.title = element.match( titleRegexpr )[ 1 ];
+      result.title = element.match( titleRegexpr )[ 1 ] || '';
 
       const tagsRegexpr = /<li>(.*?)<\/li>/ig;
       result.tags = element.match( tagsRegexpr ).map( (val) => {
@@ -83,10 +99,13 @@ function getDetails( elements ) {
       });
 
       const descriptionRegexpr = /<p class="video-description">(.*)<\/p/i;
-      result.description = element.match( descriptionRegexpr )[ 1 ];
+      const descriptionElement = element.match( descriptionRegexpr );
+      if( descriptionElement ) {
+        result.description = descriptionElement[ 1 ];
+      }
 
       const thumburlRegexpr = /<img data-src="(.*?)"/i;
-      result.thumb = element.match( thumburlRegexpr )[ 1 ];
+      result.thumb = element.match( thumburlRegexpr )[ 1 ] || '';
 
       data.push( result );
 
@@ -99,7 +118,17 @@ function getDetails( elements ) {
 }
 
 // check if last page
-function checkLast() {
+function checkLast( page ) {
+  const progressElement = page.match( /<span class='pages'>(.*?)<\/span>/ )[ 1 ];
+  const overallProgress = progressElement.match( /Page (\d+) of (\d+)/ );
+  const currentPage = overallProgress[ 1 ];
+  const lastPage = overallProgress[ 2 ];
+
+  if ( Number( currentPage ) < Number( lastPage ) ) {
+    return Number( currentPage ) + 1;
+  } else {
+    return false;
+  }
 
 }
 

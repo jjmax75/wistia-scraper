@@ -23,6 +23,7 @@
   "homepage": "https://github.com/jjmax75/wistia-scraper#readme",
   "dependencies": {
     "dotenv": "2.0.0",
+    "follow-redirects": "1.2.1",
     "mongodb": "2.2.16"
   }
 }
