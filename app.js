@@ -15,7 +15,9 @@ MongoClient.connect( dbUrl, ( err, database ) => {
 const address = process.argv[ 2 ];
 
 getPage( address )
-  .then( getThumbElements ).then( (response) => {
+  .then( getThumbElements )
+  .then( getDetails )
+  .then( (response) => {
   console.log( 'got the thumb elements:', response );
   db.close();
 }).catch( ( err ) => {
@@ -61,8 +63,39 @@ function getThumbElements( page ) {
 }
 
 // get the video details - link, titles, tags, description, thumburl
-function getDetails() {
+function getDetails( elements ) {
+  return new Promise(( resolve, reject ) => {
+    let data = [];
 
+    elements.forEach( (element) => {
+      let result = {};
+
+      const linkRegexpr = /<a\s+(?:[^>]*?\s+)?href="([^"]*)"/;
+      result.link = element.match( linkRegexpr )[ 1 ];
+
+      // todo - need to change this or make more generic
+      const titleRegexpr = /<span class="video-name"><a[\s\S]+?>([\s\S]+)<\/a>/i;
+      result.title = element.match( titleRegexpr )[ 1 ];
+
+      const tagsRegexpr = /<li>(.*?)<\/li>/ig;
+      result.tags = element.match( tagsRegexpr ).map( (val) => {
+        return val.replace( /<\/?li>/g, '' );
+      });
+
+      const descriptionRegexpr = /<p class="video-description">(.*)<\/p/i;
+      result.description = element.match( descriptionRegexpr )[ 1 ];
+
+      const thumburlRegexpr = /<img data-src="(.*?)"/i;
+      result.thumb = element.match( thumburlRegexpr )[ 1 ];
+
+      data.push( result );
+
+    })
+
+    saveDB( data );
+
+    resolve( 'all elements added to db' );
+  });
 }
 
 // check if last page
@@ -72,11 +105,13 @@ function checkLast() {
 
 // save to database
 function saveDB( data ) {
-  db.collection( 'videos' ).save( data, ( err, result ) => {
-    if ( err ) error( err );
+  data.forEach( (video) => {
+    db.collection( 'videos' ).save( video, ( err, result ) => {
+      if ( err ) error( err );
 
-    console.log( 'saved to database' );
-  })
+      console.log( 'saved to database' );
+    });
+  });
 }
 
 // generic error function, kills process when called
