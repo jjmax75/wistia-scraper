@@ -1,3 +1,5 @@
 json
 assets
 node_modules
+sandbox
+.env

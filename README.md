@@ -2,6 +2,8 @@
 
 Command line Node script to scrape a web address and return all video ids and descriptions from Wistia at that address.
 
+For Wistia API2
+
 - [ ] initial url input
 - [ ] follow links in url to video pages
 - [ ] restrict to domain
