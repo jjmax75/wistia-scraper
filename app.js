@@ -1,23 +1,25 @@
 'use strict';
 require( 'dotenv' ).config(); // environment variables
 
-// // db connection
-// const MongoClient = require( 'mongodb' ).MongoClient;
-// const dbUrl = process.env.DB_URL;
-// let db; // store the database connection
-// MongoClient.connect( dbUrl, ( err, database ) => {
-//   if ( err ) error( err );
-//   db = database;
-//   console.log( 'connected to db successfully' );
-// });
+// db connection
+const MongoClient = require( 'mongodb' ).MongoClient;
+const dbUrl = process.env.DB_URL;
+let db; // store the database connection
+MongoClient.connect( dbUrl, ( err, database ) => {
+  if ( err ) error( err );
+  db = database;
+  console.log( 'connected to db successfully' );
+});
 
 // address to be scraped
 const address = process.argv[ 2 ];
 
-getPage( address ).then( ( response ) => {
-  console.log( 'success', response );
-}).catch( () => {
-  console.log( 'there was a problem:', response );
+getPage( address )
+  .then( getThumbElements ).then( (response) => {
+  console.log( 'got the thumb elements:', response );
+  db.close();
+}).catch( ( err ) => {
+  error( err );
 });
 
 // get the page
@@ -48,8 +50,14 @@ function getPage( address ) {
 }
 
 // get all thumb elements from the page
-function getThumbElements() {
+function getThumbElements( page ) {
+  return new Promise(( resolve, reject ) => {
+    // put regexpr in dotenv file
+    const regexpr = new RegExp( process.env.REGEXPR, 'ig' );
 
+    let matches = page.match( regexpr );
+    resolve( matches );
+  });
 }
 
 // get the video details - link, titles, tags, description, thumburl
