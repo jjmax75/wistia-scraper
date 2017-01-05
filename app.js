@@ -11,15 +11,16 @@ MongoClient.connect( dbUrl, ( err, database ) => {
   if ( err ) error( err );
   db = database;
   console.log( 'connected to db successfully' );
+
+  // kick things off
+  // main( siteAddress + currentPage + '/' );
+  getIDs();
 });
 
 // address to be scraped
 const siteAddress = process.argv[ 2 ];
 const currentPage = process.argv[ 3 ];
 let page;
-
-// kick things off
-main( siteAddress + currentPage + '/' );
 
 function main( address ) {
   getPage( address )
@@ -129,7 +130,29 @@ function checkLast( page ) {
   } else {
     return false;
   }
+}
 
+// get the video ids
+function getIDs() {
+  db.collection( 'videos' ).find( {} ).toArray( (err, videos) => {
+
+    // need to rate limit this (10 seconds per request?)
+    function delayedLoop( i ) {
+      setTimeout( () => {
+        getPage( videos[ i ].link ).then( response => {
+          console.log(response);
+          const idRegexpr = /wistia_async_(.*?)\s/i;
+          const id = response.match( idRegexpr )[ 1 ];
+          console.log( id );
+        });
+        i++;
+        if( i < videos.length ) {
+          delayedLoop( i );
+        }
+      }, (Math.random() * 6 + 10) * 1000);
+    }
+    delayedLoop( 0 ); //start at index 0
+  });
 }
 
 // save to database
