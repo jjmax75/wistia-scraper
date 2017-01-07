@@ -4,11 +4,11 @@ Command line Node script to scrape a web address and return all video ids and de
 
 For Wistia API2
 
-- [ ] initial url input
+- [x] initial url input
 - [ ] follow links in url to video pages
 - [ ] restrict to domain
 - [ ] restrict to levels
 - [ ] grab ids
-- [ ] grab descriptions
+- [x] grab descriptions
 - [ ] get json
-- [ ] create file with ids, titles, descriptions
+- [x] create db entry with ids, titles, descriptions
