@@ -2,6 +2,8 @@
 require( 'dotenv' ).config(); // environment variables
 const http = require( 'follow-redirects' ).http;
 const https = require( 'follow-redirects' ).https;
+const fs = require( 'fs' );
+const url = require( 'url' )
 
 // db connection
 const MongoClient = require( 'mongodb' ).MongoClient;
@@ -44,7 +46,17 @@ function getPage( address ) {
   console.log( 'processing page:', address );
   return new Promise(( resolve, reject ) => {
     const lib = address.startsWith( 'https' ) ? https : http;
-    const request = lib.get( address, ( response ) => {
+    const user = process.env.USERNAME;
+    const pass = process.env.PASSWORD;
+    const auth = new Buffer( user + ':' + pass ).toString( 'base64' );
+    const options = {
+      host: url.parse( address ).hostname,
+      path: url.parse( address ).pathname,
+      headers: {
+        'Authorization': 'Basic ' + auth
+      }
+    }
+    const request = lib.get( options, ( response ) => {
 
       if ( response.statusCode < 200 || response.statusCode > 299 ) {
          reject( new Error( 'Failed to load page, status code: ' + response.statusCode ));
@@ -140,10 +152,17 @@ function getIDs() {
     function delayedLoop( i ) {
       setTimeout( () => {
         getPage( videos[ i ].link ).then( response => {
-          console.log(response);
-          const idRegexpr = /wistia_async_(.*?)\s/i;
-          const id = response.match( idRegexpr )[ 1 ];
-          console.log( id );
+          fs.writeFile( './output', response, function(err) {
+            if(err) {
+                return console.log(err);
+            }
+
+            console.log("The file was saved!");
+          });
+          // console.log(response);
+          // const idRegexpr = /wistia_async_(.*?)\s/i;
+          // const id = response.match( idRegexpr )[ 1 ];
+          // console.log( id );
         });
         i++;
         if( i < videos.length ) {
